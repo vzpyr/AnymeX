@@ -13,6 +13,7 @@ import 'package:anymex/widgets/common/glow.dart';
 import 'package:anymex/widgets/custom_widgets/anymex_bottomsheet.dart';
 import 'package:anymex/widgets/custom_widgets/anymex_tabbar.dart';
 import 'package:anymex/widgets/custom_widgets/custom_expansion_tile.dart';
+import 'package:anymex_extension_runtime_bridge/Settings/KvStore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -276,8 +277,9 @@ class _ExtensionScreenState extends State<ExtensionScreen>
 
   void _showFilterSheet(BuildContext context) {
     final languages = sortedLanguagesMap.keys.toList();
+    final hasProxy = (getVal<String>('aniyomi_remote_proxy_url') ?? '').isNotEmpty;
     final sourceTypes = Platform.isIOS
-        ? ['all', 'Mangayomi', 'Sora']
+        ? (hasProxy ? ['all', 'Mangayomi', 'Aniyomi', 'Cloudstream', 'Sora'] : ['all', 'Mangayomi', 'Sora'])
         : ['all', 'Mangayomi', 'Aniyomi', 'Cloudstream', 'Sora', 'Kotatsu'];
 
     AnymexSheet(
@@ -532,6 +534,7 @@ class _ExtensionScreenState extends State<ExtensionScreen>
     if (activeManager != null) return activeManager.requiresPlugin;
     return type == 'Aniyomi' || type == 'Cloudstream';
   }
+
 
   @override
   void reassemble() {

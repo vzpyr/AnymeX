@@ -9,6 +9,7 @@ import 'package:anymex/widgets/helper/platform_builder.dart';
 import 'package:anymex/widgets/non_widgets/snackbar.dart';
 import 'package:anymex_extension_runtime_bridge/AnymeXBridge.dart';
 import 'package:anymex_extension_runtime_bridge/ExtensionManager.dart';
+import 'package:anymex_extension_runtime_bridge/Settings/KvStore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -136,13 +137,40 @@ class _SettingsExtensionManagerState extends State<SettingsExtensionManager> {
     final colors = context.colors;
     final bridge = AnymeXRuntimeBridge.controller;
     if (Platform.isIOS) {
-      return const Scaffold(
+      return Scaffold(
         body: Column(
           children: [
-            NestedHeader(title: 'Extension Manager'),
+            const NestedHeader(title: 'Extension Manager'),
             Expanded(
-              child: Center(
-                child: Text('Extension Manager is not supported on iOS.'),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Remote Extension Server (iOS)',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'iOS cannot natively run Aniyomi/Mihon extensions. Enter your M-Extension-Server URL below to run them remotely over HTTP.',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        initialValue: getVal<String>('aniyomi_remote_proxy_url') ?? '',
+                        decoration: InputDecoration(
+                          labelText: 'Server URL (e.g. http://192.168.1.100:8080)',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onChanged: (value) {
+                          setVal('aniyomi_remote_proxy_url', value.trim());
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],

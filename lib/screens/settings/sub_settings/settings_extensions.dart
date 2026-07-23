@@ -174,13 +174,11 @@ class _SettingsExtensionsState extends State<SettingsExtensions> {
             return Column(children: [
               NestedHeader(
                 title: 'Extensions',
-                action: Platform.isIOS
-                    ? null
-                    : IconButton(
-                        onPressed: () => Get.to(() => const SettingsExtensionManager()),
-                        icon: const Icon(Icons.settings_suggest_rounded),
-                        tooltip: 'Extension Manager',
-                      ),
+                action: IconButton(
+                  onPressed: () => Get.to(() => const SettingsExtensionManager()),
+                  icon: const Icon(Icons.settings_suggest_rounded),
+                  tooltip: 'Extension Manager',
+                ),
               ),
               Expanded(
                 child: Center(
@@ -198,13 +196,11 @@ class _SettingsExtensionsState extends State<SettingsExtensions> {
           return Column(children: [
             NestedHeader(
               title: 'Extensions',
-              action: Platform.isIOS
-                  ? null
-                  : IconButton(
-                      onPressed: () => Get.to(() => const SettingsExtensionManager()),
-                      icon: const Icon(Icons.settings_suggest_rounded),
-                      tooltip: 'Extension Manager',
-                    ),
+              action: IconButton(
+                onPressed: () => Get.to(() => const SettingsExtensionManager()),
+                icon: const Icon(Icons.settings_suggest_rounded),
+                tooltip: 'Extension Manager',
+              ),
             ),
             const SizedBox(height: 10),
             if (displayList.length > 1) ...[

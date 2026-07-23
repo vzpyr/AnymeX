@@ -266,7 +266,8 @@ class _HomePageState extends State<HomePage> {
                     : CrossAxisAlignment.start,
                 children: [
                   SizedBox(
-                    height: isDesktop ? 10 : statusBarHeight + appBarHeight,
+                    // height: isDesktop ? 10 : statusBarHeight + appBarHeight,
+                    height: statusBarHeight + appBarHeight,
                   ),
                   const SizedBox(height: 10),
                   Obx(

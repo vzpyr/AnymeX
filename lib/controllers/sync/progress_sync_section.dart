@@ -119,27 +119,8 @@ class _GistSyncCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 if (!isLogged)
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: isAuthenticating
-                          ? null
-                          : () {
-                              unawaited(ctrl.login(context));
-                            },
-                      icon: isAuthenticating
-                          ? SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: colors.onPrimary,
-                              ),
-                            )
-                          : const Icon(Icons.login_rounded),
-                      label: Text(primaryActionLabel),
-                    ),
-                  ),
+                  _PatLoginSection(ctrl: ctrl, isAuthenticating: isAuthenticating, primaryActionLabel: primaryActionLabel, colors: colors),
+
                 if (isLogged)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,6 +204,45 @@ class _GistSyncCard extends StatelessWidget {
                           onChanged: (v) {
                             unawaited(ctrl.setExitSyncNotifications(v));
                           },
+                        ),
+                        const SizedBox(height: 14),
+                        AnymexText(
+                          text: 'Settings Sync',
+                          size: 12,
+                          variant: TextVariant.bold,
+                          color: colors.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: isBusy
+                                    ? null
+                                    : () => unawaited(ctrl.uploadSettings()),
+                                icon: const Icon(Icons.upload_rounded, size: 18),
+                                label: const Text('Upload'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: isBusy
+                                    ? null
+                                    : () => unawaited(ctrl.downloadAndApplySettings()),
+                                icon: const Icon(Icons.download_rounded, size: 18),
+                                label: const Text('Download'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: Text(
+                            'Upload: saves current settings to gist.  Download: applies gist settings here.',
+                            style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant.withOpacity(0.7)),
+                          ),
                         ),
                       ] else ...[
                         const SizedBox(height: 12),
@@ -1244,6 +1264,161 @@ class _DeleteGistConfirmDialogState extends State<_DeleteGistConfirmDialog> {
                 : 'I Understand ($_secondsLeft)',
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _PatLoginSection extends StatefulWidget {
+  final GistSyncController ctrl;
+  final bool isAuthenticating;
+  final String primaryActionLabel;
+  final ColorScheme colors;
+
+  const _PatLoginSection({
+    required this.ctrl,
+    required this.isAuthenticating,
+    required this.primaryActionLabel,
+    required this.colors,
+  });
+
+  @override
+  State<_PatLoginSection> createState() => _PatLoginSectionState();
+}
+
+class _PatLoginSectionState extends State<_PatLoginSection> {
+  bool _showPat = false;
+  final _patController = TextEditingController();
+  bool _obscure = true;
+
+  @override
+  void dispose() {
+    _patController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    final isBusy = widget.isAuthenticating;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: isBusy
+                ? null
+                : () => unawaited(widget.ctrl.login(context)),
+            icon: isBusy
+                ? SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colors.onPrimary,
+                    ),
+                  )
+                : const Icon(Icons.login_rounded),
+            label: Text(widget.primaryActionLabel),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: Divider(
+                color: colors.outlineVariant.withOpacity(0.4),
+                thickness: 1,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Text(
+                'or',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: colors.onSurfaceVariant.withOpacity(0.6),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Divider(
+                color: colors.outlineVariant.withOpacity(0.4),
+                thickness: 1,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        GestureDetector(
+          onTap: () => setState(() => _showPat = !_showPat),
+          child: Row(
+            children: [
+              Icon(
+                _showPat
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: colors.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Use Personal Access Token (no setup needed)',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: colors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (_showPat) ...[
+          const SizedBox(height: 10),
+          TextField(
+            controller: _patController,
+            obscureText: _obscure,
+            decoration: InputDecoration(
+              hintText: 'ghp_xxxxxxxxxxxxxxxxxxxx',
+              labelText: 'GitHub Personal Access Token',
+              helperText: 'Needs the "gist" scope only',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscure ? Icons.visibility_off : Icons.visibility,
+                ),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: isBusy
+                  ? null
+                  : () {
+                      unawaited(
+                        widget.ctrl.loginWithPat(_patController.text),
+                      );
+                    },
+              icon: const Icon(Icons.key_rounded),
+              label: const Text('Connect with PAT'),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Go to github.com/settings/tokens → Generate new token (classic) → tick "gist" → paste above.',
+            style: TextStyle(
+              fontSize: 11,
+              color: colors.onSurfaceVariant.withOpacity(0.65),
+            ),
+          ),
+        ],
       ],
     );
   }

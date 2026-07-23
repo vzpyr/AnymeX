@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:anymex/controllers/settings/settings.dart';
 import 'package:anymex/controllers/sync/gist_sync_service.dart';
 import 'package:anymex/database/data_keys/keys.dart';
 import 'package:anymex/database/isar_models/chapter.dart';
 import 'package:anymex/database/isar_models/episode.dart';
+import 'package:anymex/database/isar_models/key_value.dart';
+import 'package:anymex/main.dart' show isar;
+import 'package:anymex/models/player/player_adaptor.dart';
+import 'package:anymex/models/ui/ui_adaptor.dart';
 import 'package:anymex/utils/logger.dart';
 import 'package:anymex/utils/media_syncer.dart';
 import 'package:anymex/widgets/non_widgets/snackbar.dart';
@@ -13,6 +18,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:isar_community/isar.dart';
 
 const _kDefaultGithubCallbackScheme = 'anymex';
 
@@ -233,10 +239,49 @@ class GistSyncController extends GetxController {
     }
   }
 
+  Future<void> loginWithPat(String pat) async {
+    final trimmed = pat.trim();
+    if (trimmed.isEmpty) {
+      errorSnackBar('Please enter a Personal Access Token.');
+      return;
+    }
+    isAuthenticating.value = true;
+    try {
+      final response = await http.get(
+        Uri.parse('https://api.github.com/user'),
+        headers: {
+          'Authorization': 'Bearer $trimmed',
+          'Accept': 'application/vnd.github+json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) {
+        errorSnackBar('Invalid token (HTTP ${response.statusCode}).');
+        return;
+      }
+
+      _service.setToken(trimmed);
+      SyncKeys.gistGithubToken.set(trimmed);
+      SyncKeys.gistLoginMode.set('pat');
+      isLoggedIn.value = true;
+
+      await _fetchGithubProfile(trimmed);
+      await refreshCloudGistStatus();
+      Logger.i('[GistSync] PAT login successful');
+      successSnackBar('Connected via Personal Access Token!');
+    } catch (e) {
+      Logger.i('[GistSync] loginWithPat: $e');
+      errorSnackBar('Could not connect: $e');
+    } finally {
+      isAuthenticating.value = false;
+    }
+  }
+
   Future<void> logout() async {
     _service.clear();
     SyncKeys.gistGithubToken.delete();
     SyncKeys.gistGithubUsername.delete();
+    SyncKeys.gistLoginMode.delete();
     isLoggedIn.value = false;
     hasCloudGist.value = null;
     githubUsername.value = null;
@@ -247,6 +292,98 @@ class GistSyncController extends GetxController {
     lastSyncDurationMs.value = null;
     lastSyncSuccessful.value = null;
     lastSyncError.value = null;
+  }
+
+  static const _excludedKeys = {
+    'authToken', 'malAuthToken', 'malRefreshToken', 'simklAuthToken',
+    'malSessionId', 'gistGithubToken', 'gistGithubUsername', 'gistLoginMode',
+  };
+
+  Map<String, dynamic> _buildSettingsPayload() {
+    final rows = isar.collection<KeyValue>().where().findAllSync();
+    final payload = <String, dynamic>{
+      '_settingsVersion': 2,
+      '_savedAt': DateTime.now().millisecondsSinceEpoch,
+    };
+    for (final row in rows) {
+      if (_excludedKeys.contains(row.key)) continue;
+      if (row.value != null) payload[row.key] = row.value;
+    }
+    return payload;
+  }
+
+  void _applySettingsPayload(Map<String, dynamic> d) {
+    isar.writeTxnSync(() {
+      final col = isar.collection<KeyValue>();
+      for (final entry in d.entries) {
+        final key = entry.key;
+        if (key.startsWith('_')) continue;
+        if (_excludedKeys.contains(key)) continue;
+        final value = entry.value;
+        if (value is! String) continue;
+        final row = col.filter().keyEqualTo(key).findFirstSync()
+            ?? (KeyValue()..key = key);
+        row.value = value;
+        col.putSync(row);
+      }
+    });
+
+    final s = Get.find<Settings>();
+    s.uiSettings.value = UISettings.fromDB();
+    s.playerSettings.value = PlayerSettings.fromDB();
+    s.uiSettings.refresh();
+    s.playerSettings.refresh();
+  }
+
+  Future<void> uploadSettings() async {
+    if (!isLoggedIn.value || !_service.isReady) {
+      errorSnackBar('Connect GitHub first to upload settings.');
+      return;
+    }
+    if (isSyncing.value) {
+      infoSnackBar('Another sync action is already in progress.');
+      return;
+    }
+    _beginSyncOp();
+    try {
+      await _service.uploadSettings(_buildSettingsPayload());
+      hasCloudGist.value = true;
+      _markSyncSuccess();
+      successSnackBar('Settings uploaded to gist ✓');
+    } catch (e) {
+      _markSyncFailure(e);
+      errorSnackBar('Failed to upload settings: $e');
+    } finally {
+      _endSyncOp();
+    }
+  }
+
+  Future<void> downloadAndApplySettings() async {
+    if (!isLoggedIn.value || !_service.isReady) {
+      errorSnackBar('Connect GitHub first to download settings.');
+      return;
+    }
+    if (isSyncing.value) {
+      infoSnackBar('Another sync action is already in progress.');
+      return;
+    }
+    _beginSyncOp();
+    try {
+      final data = await _service.downloadSettings();
+      if (data == null || data.isEmpty) {
+        infoSnackBar('No settings found in gist. Upload from another device first.');
+        return;
+      }
+      _applySettingsPayload(data);
+      hasCloudGist.value = true;
+      _markSyncSuccess();
+      successSnackBar('Settings applied ✓ (restart not required)');
+    } catch (e) {
+      _markSyncFailure(e);
+      errorSnackBar('Failed to download settings: $e');
+    } finally {
+      _endSyncOp();
+    }
   }
 
   Future<void> setAutoDeleteCompletedOnExit(bool enabled) async {

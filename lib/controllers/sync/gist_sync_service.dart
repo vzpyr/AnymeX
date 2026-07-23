@@ -464,4 +464,38 @@ class GistSyncService {
       return null;
     }
   }
+
+  static const _settingsKey = '__settings';
+
+  Future<void> uploadSettings(Map<String, dynamic> settings) async {
+    if (!isReady) throw StateError('Sync service is not ready.');
+    try {
+      final raw = await _downloadRaw();
+      raw[_settingsKey] = settings;
+      await _upload(raw);
+      Logger.i('[GistSync] Settings uploaded');
+    } catch (e) {
+      Logger.e('[GistSync] uploadSettings: $e');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>?> downloadSettings() async {
+    if (!isReady) throw StateError('Sync service is not ready.');
+    try {
+      final gistId = await _findExistingGistId();
+      if (gistId == null) return null;
+      final raw = await _downloadRawByGistId(gistId);
+      final val = raw[_settingsKey];
+      if (val is Map<String, dynamic>) return val;
+      if (val is Map) {
+        return val.map((k, v) => MapEntry(k.toString(), v));
+      }
+      return null;
+    } catch (e) {
+      Logger.e('[GistSync] downloadSettings: $e');
+      return null;
+    }
+  }
 }
+

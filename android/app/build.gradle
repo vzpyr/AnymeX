@@ -11,8 +11,8 @@ plugins {
 android {
     namespace = "com.ryan.anymex"
     compileSdk = 36
-    // ndkVersion = flutter.ndkVersion
-    ndkVersion = "27.0.12077973"
+    ndkVersion = flutter.ndkVersion
+    // ndkVersion = "27.0.12077973"
 
     dependenciesInfo {
         includeInApk = false
@@ -61,10 +61,10 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.release
-            minifyEnabled true
-            shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig = signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
+            // proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
 
         debug {
