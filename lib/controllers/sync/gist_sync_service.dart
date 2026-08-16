@@ -224,6 +224,22 @@ class GistSyncService {
     return null;
   }
 
+  Future<String?> _extractFileContent(Map<String, dynamic>? fileObj) async {
+    if (fileObj == null) return null;
+    final content = fileObj['content'] as String?;
+    if (content != null && content.isNotEmpty && fileObj['truncated'] != true) {
+      return content;
+    }
+    final rawUrl = fileObj['raw_url'] as String?;
+    if (rawUrl != null && rawUrl.isNotEmpty) {
+      final rawResp = await _resilientGet(Uri.parse(rawUrl), _headers);
+      if (rawResp.statusCode == 200) {
+        return rawResp.body;
+      }
+    }
+    return content;
+  }
+
   Future<Map<String, dynamic>> _downloadRawByGistId(String gistId) async {
     final resp = await _resilientGet(
       Uri.parse('$_apiBase/gists/$gistId'),
@@ -237,8 +253,9 @@ class GistSyncService {
     }
 
     final data = json.decode(resp.body) as Map<String, dynamic>;
-    final content = ((data['files'] as Map<String, dynamic>?)?[_fileName]
-        as Map<String, dynamic>?)?['content'] as String?;
+    final fileObj = (data['files'] as Map<String, dynamic>?)?[_fileName]
+        as Map<String, dynamic>?;
+    final content = await _extractFileContent(fileObj);
     if (content == null || content.trim().isEmpty) return {};
     return json.decode(content) as Map<String, dynamic>;
   }
@@ -362,6 +379,17 @@ class GistSyncService {
   Future<void> uploadBackupData(Map<String, dynamic> data, {int retryAttempt = 0}) async {
     if (!isReady) throw StateError('Sync service is not ready.');
     try {
+      final sanitizedData = Map<String, dynamic>.from(data);
+      if (sanitizedData.containsKey('settings')) {
+        final settings = (sanitizedData['settings'] as List?)
+            ?.where((e) {
+              final k = (e as Map<String, dynamic>?)?['key'] as String? ?? '';
+              return !k.startsWith('SyncKeys_') && !k.toLowerCase().contains('token');
+            })
+            .toList();
+        sanitizedData['settings'] = settings;
+      }
+
       final gistId = await _ensureGistId();
       if (gistId == null) return;
 
@@ -370,7 +398,7 @@ class GistSyncService {
         _headers,
         body: json.encode({
           'files': {
-            _backupFileName: {'content': json.encode(data)},
+            _backupFileName: {'content': json.encode(sanitizedData)},
           },
         }),
       );
@@ -406,8 +434,9 @@ class GistSyncService {
       }
 
       final data = json.decode(resp.body) as Map<String, dynamic>;
-      final content = ((data['files'] as Map<String, dynamic>?)?[_backupFileName]
-          as Map<String, dynamic>?)?['content'] as String?;
+      final fileObj = (data['files'] as Map<String, dynamic>?)?[_backupFileName]
+          as Map<String, dynamic>?;
+      final content = await _extractFileContent(fileObj);
       if (content == null || content.trim().isEmpty) return null;
       return json.decode(content) as Map<String, dynamic>;
     } catch (e) {
@@ -457,8 +486,9 @@ class GistSyncService {
     }
 
     final data = json.decode(resp.body) as Map<String, dynamic>;
-    final content = ((data['files'] as Map<String, dynamic>?)?[_fileName]
-        as Map<String, dynamic>?)?['content'] as String?;
+    final fileObj = (data['files'] as Map<String, dynamic>?)?[_fileName]
+        as Map<String, dynamic>?;
+    final content = await _extractFileContent(fileObj);
 
     if (content == null || content.trim().isEmpty) return {};
     return json.decode(content) as Map<String, dynamic>;
