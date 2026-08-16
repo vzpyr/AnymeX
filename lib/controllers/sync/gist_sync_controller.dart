@@ -274,15 +274,20 @@ class GistSyncController extends GetxController {
   }
 
   Future<void> syncFullBackup() async {
-    if (!_canSync) return;
+    if (!_canSync) {
+      errorSnackBar('Connect GitHub first to backup to cloud.');
+      return;
+    }
     try {
       final backupService = Get.isRegistered<BackupRestoreService>()
           ? Get.find<BackupRestoreService>()
           : Get.put(BackupRestoreService());
       final backupData = await backupService.buildFullBackupData();
       await _service.uploadBackupData(backupData);
+      successSnackBar('Cloud backup uploaded successfully!');
     } catch (e) {
       Logger.i('[GistSync] syncFullBackup: $e');
+      errorSnackBar('Failed to upload cloud backup: $e');
     }
   }
 
