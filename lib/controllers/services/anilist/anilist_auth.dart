@@ -21,6 +21,7 @@ import 'package:anymex/utils/string_extensions.dart';
 import 'package:anymex/utils/theme_extensions.dart';
 import 'package:anymex/widgets/non_widgets/snackbar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -239,122 +240,137 @@ class AnilistAuth extends GetxController {
 
   void _showTokenInputDialog(BuildContext context) {
     final TextEditingController tokenController = TextEditingController();
-    final theme = context.colors;
-
     const url =
         'https://anilist.co/api/v2/oauth/authorize?client_id=35224&response_type=token';
 
-    launchUrlString(url, mode: LaunchMode.externalApplication);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Text(
-          'Login with Token',
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.bold,
-            color: theme.onSurface,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Please paste the token from the browser',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                color: theme.onSurface.opaque(0.7),
-              ),
+    Get.dialog(
+      Builder(
+        builder: (ctx) {
+          final theme = ctx.colors;
+          return AlertDialog(
+            backgroundColor: theme.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            const SizedBox(height: 8),
-            TextButton.icon(
-              onPressed: () => launchUrlString(url, mode: LaunchMode.externalApplication),
-              icon: const Icon(Icons.open_in_browser_rounded, size: 18),
-              label: const Text('Open AniList Login Page'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: tokenController,
-              decoration: InputDecoration(
-                hintText: 'Enter token here',
-                hintStyle: TextStyle(
-                  fontFamily: 'Poppins',
-                  color: theme.onSurface.opaque(0.5),
-                ),
-                filled: true,
-                fillColor: theme.surfaceVariant,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-              ),
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                color: theme.onSurface,
-              ),
-              maxLines: 3,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                color: theme.onSurface.opaque(0.7),
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final token = tokenController.text.trim();
-              if (token.isNotEmpty) {
-                Navigator.pop(context);
-                try {
-                  AuthKeys.authToken.set(token);
-                  await fetchUserProfile();
-                  await fetchUserAnimeList();
-                  await fetchUserMangaList();
-                  try {
-                    final commentumService = Get.find<CommentumService>();
-                    await commentumService.getUserRole();
-                  } catch (e) {
-                    Logger.i('Error checking Commentum role: $e');
-                  }
-                } catch (e) {
-                  Logger.i('Error saving token: $e');
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.primaryContainer,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text(
-              'Login',
+            title: Text(
+              'Login with Token',
               style: TextStyle(
                 fontFamily: 'Poppins',
                 fontWeight: FontWeight.bold,
-                color: theme.onPrimaryContainer,
+                color: theme.onSurface,
               ),
             ),
-          ),
-        ],
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '1. Open AniList to generate a token\n2. Copy the token and paste it below',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 13,
+                    color: theme.onSurface.opaque(0.7),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      launchUrlString(url, mode: LaunchMode.externalApplication),
+                  icon: const Icon(Icons.open_in_browser_rounded, size: 18),
+                  label: const Text('Get AniList Token'),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: tokenController,
+                  decoration: InputDecoration(
+                    hintText: 'Paste token here',
+                    hintStyle: TextStyle(
+                      fontFamily: 'Poppins',
+                      color: theme.onSurface.opaque(0.5),
+                    ),
+                    filled: true,
+                    fillColor: theme.surfaceVariant,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.content_paste_rounded),
+                      onPressed: () async {
+                        final data =
+                            await Clipboard.getData(Clipboard.kTextPlain);
+                        if (data?.text != null) {
+                          tokenController.text = data!.text!.trim();
+                        }
+                      },
+                    ),
+                  ),
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    color: theme.onSurface,
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    color: theme.onSurface.opaque(0.7),
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final token = tokenController.text.trim();
+                  if (token.isNotEmpty) {
+                    Get.back();
+                    try {
+                      AuthKeys.authToken.set(token);
+                      await fetchUserProfile();
+                      await fetchUserAnimeList();
+                      await fetchUserMangaList();
+                      try {
+                        final commentumService = Get.find<CommentumService>();
+                        await commentumService.getUserRole();
+                      } catch (e) {
+                        Logger.i('Error checking Commentum role: $e');
+                      }
+                      successSnackBar('Logged in to AniList successfully!');
+                    } catch (e) {
+                      Logger.i('Error saving token: $e');
+                      errorSnackBar('Failed to log in: $e');
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.primaryContainer,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'Login',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.bold,
+                    color: theme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
+      barrierDismissible: false,
     );
   }
 
