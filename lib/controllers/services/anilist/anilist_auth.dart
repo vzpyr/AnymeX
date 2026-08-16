@@ -237,14 +237,14 @@ class AnilistAuth extends GetxController {
     }
   }
 
-  void _showTokenInputDialog(BuildContext context) async {
+  void _showTokenInputDialog(BuildContext context) {
     final TextEditingController tokenController = TextEditingController();
     final theme = context.colors;
 
     const url =
         'https://anilist.co/api/v2/oauth/authorize?client_id=35224&response_type=token';
 
-    await launchUrlString(url);
+    launchUrlString(url, mode: LaunchMode.externalApplication);
 
     showDialog(
       context: context,
@@ -272,7 +272,13 @@ class AnilistAuth extends GetxController {
                 color: theme.onSurface.opaque(0.7),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () => launchUrlString(url, mode: LaunchMode.externalApplication),
+              icon: const Icon(Icons.open_in_browser_rounded, size: 18),
+              label: const Text('Open AniList Login Page'),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: tokenController,
               decoration: InputDecoration(
