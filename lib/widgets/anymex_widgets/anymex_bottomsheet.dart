@@ -54,7 +54,12 @@ class AnymeXSheet extends StatelessWidget {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+        padding: EdgeInsets.fromLTRB(
+          12,
+          0,
+          12,
+          16 + MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: Container(
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
