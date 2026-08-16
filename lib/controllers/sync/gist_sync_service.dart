@@ -121,6 +121,7 @@ Future<http.Response> _resilientDelete(
 
 class GistSyncService {
   static const _fileName = 'anymex_progress.json';
+  static const _backupFileName = 'anymex_backup.json';
   static const _apiBase = 'https://api.github.com';
 
   static final GistSyncService _instance = GistSyncService._();
@@ -356,6 +357,63 @@ class GistSyncService {
   Future<void> uploadRaw(Map<String, dynamic> data) async {
     if (!isReady) throw StateError('Sync service is not ready.');
     await _upload(data);
+  }
+
+  Future<void> uploadBackupData(Map<String, dynamic> data, {int retryAttempt = 0}) async {
+    if (!isReady) throw StateError('Sync service is not ready.');
+    try {
+      final gistId = await _ensureGistId();
+      if (gistId == null) return;
+
+      final resp = await _resilientPatch(
+        Uri.parse('$_apiBase/gists/$gistId'),
+        _headers,
+        body: json.encode({
+          'files': {
+            _backupFileName: {'content': json.encode(data)},
+          },
+        }),
+      );
+      if (resp.statusCode != 200) {
+        if (resp.statusCode == 404) {
+          _gistId = null;
+          if (retryAttempt < 1) {
+            return uploadBackupData(data, retryAttempt: retryAttempt + 1);
+          }
+        }
+        Logger.e('[GistSync] Upload backup failed: ${resp.statusCode}');
+      }
+    } catch (e) {
+      Logger.e('[GistSync] uploadBackupData: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>?> downloadBackupData({int retryAttempt = 0}) async {
+    if (!isReady) throw StateError('Sync service is not ready.');
+    try {
+      final gistId = await _findExistingGistId();
+      if (gistId == null) return null;
+
+      final resp = await _resilientGet(
+        Uri.parse('$_apiBase/gists/$gistId'),
+        _headers,
+      );
+      if (resp.statusCode != 200) {
+        if (resp.statusCode == 404) {
+          _gistId = null;
+        }
+        return null;
+      }
+
+      final data = json.decode(resp.body) as Map<String, dynamic>;
+      final content = ((data['files'] as Map<String, dynamic>?)?[_backupFileName]
+          as Map<String, dynamic>?)?['content'] as String?;
+      if (content == null || content.trim().isEmpty) return null;
+      return json.decode(content) as Map<String, dynamic>;
+    } catch (e) {
+      Logger.e('[GistSync] downloadBackupData: $e');
+      return null;
+    }
   }
 
   String _encodeOneEntryPerLine(Map<String, dynamic> data) {

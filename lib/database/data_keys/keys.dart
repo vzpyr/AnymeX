@@ -147,6 +147,7 @@ enum SyncKeys {
   gistGithubUsername,
   gistAutoDeleteCompleted,
   gistExitSyncNotifications,
+  gistLoginMode,
 }
 
 enum SourceKeys {

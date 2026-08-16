@@ -32,11 +32,25 @@ class BackupRestoreService extends GetxController {
   var lastBackupPath = ''.obs;
   var statusMessage = ''.obs;
 
-  String _generateKey(String password) {
-    final bytes = utf8.encode(password);
-    final digest = sha256.convert(bytes);
-    return digest.toString().substring(0, 32);
-  }
+  Future<Map<String, dynamic>> buildFullBackupData({
+    bool backupSettings = true,
+    bool backupAuthTokens = false,
+  }) =>
+      _buildBackupData(
+        backupSettings: backupSettings,
+        backupAuthTokens: backupAuthTokens,
+      );
+
+  Future<void> applyFullBackupData(Map<String, dynamic> data,
+      {bool merge = false,
+      bool restoreSettings = true,
+      bool restoreAuthTokens = false}) =>
+      _applyBackupData(
+        data,
+        merge: merge,
+        restoreSettings: restoreSettings,
+        restoreAuthTokens: restoreAuthTokens,
+      );
 
   Future<Map<String, dynamic>> _buildBackupData({
     bool backupSettings = true,

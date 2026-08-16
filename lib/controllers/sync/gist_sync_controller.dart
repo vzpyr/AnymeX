@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:anymex/controllers/services/backup_restore/backup_restore_service.dart';
 import 'package:anymex/controllers/sync/gist_sync_service.dart';
 import 'package:anymex/database/data_keys/keys.dart';
 import 'package:anymex/database/isar_models/chapter.dart';
@@ -234,10 +235,83 @@ class GistSyncController extends GetxController {
     }
   }
 
+  Future<void> loginWithPat(String pat) async {
+    final trimmed = pat.trim();
+    if (trimmed.isEmpty) {
+      errorSnackBar('Please enter a Personal Access Token.');
+      return;
+    }
+    isAuthenticating.value = true;
+    try {
+      final response = await http.get(
+        Uri.parse('https://api.github.com/user'),
+        headers: {
+          'Authorization': 'Bearer $trimmed',
+          'Accept': 'application/vnd.github+json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) {
+        errorSnackBar('Invalid token (HTTP ${response.statusCode}).');
+        return;
+      }
+
+      _service.setToken(trimmed);
+      SyncKeys.gistGithubToken.set(trimmed);
+      SyncKeys.gistLoginMode.set('pat');
+      isLoggedIn.value = true;
+
+      final username = await _fetchGithubProfile(trimmed);
+      await refreshCloudGistStatus();
+      Logger.i('[GistSync] PAT login successful');
+      successSnackBar('Connected as ${username ?? 'GitHub user'}!');
+    } catch (e) {
+      Logger.i('[GistSync] loginWithPat: $e');
+      errorSnackBar('Could not connect: $e');
+    } finally {
+      isAuthenticating.value = false;
+    }
+  }
+
+  Future<void> syncFullBackup() async {
+    if (!_canSync) return;
+    try {
+      final backupService = Get.isRegistered<BackupRestoreService>()
+          ? Get.find<BackupRestoreService>()
+          : Get.put(BackupRestoreService());
+      final backupData = await backupService.buildFullBackupData();
+      await _service.uploadBackupData(backupData);
+    } catch (e) {
+      Logger.i('[GistSync] syncFullBackup: $e');
+    }
+  }
+
+  Future<bool> restoreFullBackup({bool merge = false}) async {
+    if (!_canSync) return false;
+    try {
+      final data = await _service.downloadBackupData();
+      if (data == null || data.isEmpty) {
+        errorSnackBar('No cloud backup found in gist.');
+        return false;
+      }
+      final backupService = Get.isRegistered<BackupRestoreService>()
+          ? Get.find<BackupRestoreService>()
+          : Get.put(BackupRestoreService());
+      await backupService.applyFullBackupData(data, merge: merge);
+      successSnackBar('Cloud backup restored successfully!');
+      return true;
+    } catch (e) {
+      Logger.i('[GistSync] restoreFullBackup: $e');
+      errorSnackBar('Failed to restore cloud backup: $e');
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     _service.clear();
     SyncKeys.gistGithubToken.delete();
     SyncKeys.gistGithubUsername.delete();
+    SyncKeys.gistLoginMode.delete();
     isLoggedIn.value = false;
     hasCloudGist.value = null;
     githubUsername.value = null;
