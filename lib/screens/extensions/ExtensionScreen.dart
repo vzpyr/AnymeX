@@ -529,7 +529,7 @@ class _ExtensionScreenState extends State<ExtensionScreen>
 
   Widget _buildSourceTypeChips() {
     final allSourceTypes = Platform.isIOS
-        ? ['all', 'Mangayomi', 'Sora']
+        ? ['all', 'Mangayomi', 'Aniyomi', 'Sora']
         : ['all', 'Mangayomi', 'Aniyomi', 'Cloudstream', 'Sora', 'Kotatsu'];
 
     return Obx(() {

@@ -33,6 +33,7 @@ import 'package:anymex/screens/library/my_library.dart';
 import 'package:anymex/screens/manga/home_page.dart';
 import 'package:anymex/screens/novel/home_page.dart';
 import 'package:anymex/services/commentum_service.dart';
+import 'package:anymex/services/zero_server/zero_server_service.dart';
 import 'package:anymex/controllers/watchium/watchium_service.dart';
 import 'package:anymex/utils/external_font_loader.dart';
 import 'package:anymex/utils/logger.dart';
@@ -206,6 +207,11 @@ void main(List<String> args) async {
 
     await safeCall(() => MediaKit.ensureInitialized(),
         errorMessage: 'Failed to initialize MediaKit');
+
+    if (Platform.isIOS) {
+      await safeCall(() => ZeroServerService().startServer(),
+          errorMessage: 'Failed to start Zero extension server');
+    }
 
     await safeCall(() async {
       if (!Platform.isAndroid && !Platform.isIOS) {
