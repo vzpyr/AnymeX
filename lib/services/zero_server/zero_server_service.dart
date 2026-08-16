@@ -37,7 +37,7 @@ class ZeroServerService {
         Logger.i('Zero embedded extension server started on port $port', 'ZERO_SERVER');
       }
     } catch (e) {
-      Logger.e('Failed to start Zero extension server: $e', 'ZERO_SERVER');
+      Logger.e('Failed to start Zero extension server: $e', loggerName: 'ZERO_SERVER');
     } finally {
       _isStarting = false;
     }
