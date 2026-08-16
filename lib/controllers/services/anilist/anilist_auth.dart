@@ -207,7 +207,14 @@ class AnilistAuth extends GetxController {
       showDragHandle: true,
     );
 
-    if (selectedMethod == null || !context.mounted) return;
+    if (selectedMethod == null) return;
+
+    if (selectedMethod == 'token') {
+      _showTokenInputDialog(context);
+      return;
+    }
+
+    if (!context.mounted) return;
 
     String clientId = dotenv.env['AL_CLIENT_ID'] ?? '';
     String clientSecret = dotenv.env['AL_CLIENT_SECRET'] ?? '';
@@ -233,8 +240,6 @@ class AnilistAuth extends GetxController {
       } catch (e) {
         Logger.i('Error during login: $e');
       }
-    } else if (selectedMethod == 'token') {
-      _showTokenInputDialog(context);
     }
   }
 
@@ -242,6 +247,8 @@ class AnilistAuth extends GetxController {
     final TextEditingController tokenController = TextEditingController();
     const url =
         'https://anilist.co/api/v2/oauth/authorize?client_id=35224&response_type=token';
+
+    launchUrlString(url, mode: LaunchMode.externalApplication);
 
     Get.dialog(
       Builder(
